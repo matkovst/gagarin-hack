@@ -37,6 +37,7 @@ int main(int argc, char** argv)
 
 	FFmpegH264Demuxer demuxer(source.c_str());
     StatsCollector collector(n);
+    EventTrigger trigger(1, 8);
 
     uint8_t* pktData{nullptr};
     int pktSize = 0;
@@ -44,6 +45,7 @@ int main(int argc, char** argv)
     int pktFlags = 0;
     uint64_t fno = 0;
     uint64_t IFrames = 0;
+    int nEvents = 0;
     uint64_t firstKeyFrame = 0;
     do
     {
@@ -77,13 +79,18 @@ int main(int argc, char** argv)
 
         const auto kBytes = kB(pktSize);
 
-        if (IFrames > n/2)
+        if (IFrames > static_cast<uint64_t>(n/2))
         {
-            if (collector.outlier(kBytes, k))
+            const int state = trigger.update( collector.outlier(kBytes, k) );
+            if (EventTrigger::ABOUT_TO_ON == state)
             {
+                ++nEvents;
+                int min = floor(pktPts / 1000.0 / 60.0);
+                int sec = floor(pktPts / 1000.0) - 60.0*min;
                 std::cout << "[Detector] EVENT! Outlier at " 
                           << pktPts 
-                          << " (frame #" << IFrames << ")"
+                          << " | frame #" << IFrames 
+                          << " | " << min << ":" << sec
                           << std::endl;
             }
         }
@@ -94,6 +101,7 @@ int main(int argc, char** argv)
     } while (pktSize);
     std::cout << "[Detector] Processed " << fno << " packets" << std::endl;
     std::cout << "[Detector] Processed " << IFrames << " I-frames" << std::endl;
+    std::cout << "[Detector] Caught " << nEvents << " events" << std::endl;
 
 	std::cout << "[Detector] Processing finished\n";
 	return 0;
