@@ -77,7 +77,7 @@ int main(int argc, char** argv)
 
         const auto kBytes = kB(pktSize);
 
-        if (fno > 1)
+        if (IFrames > n/2)
         {
             if (collector.outlier(kBytes, k))
             {

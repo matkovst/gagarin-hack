@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.16.3)
 project(detector)
 
-if (NOT FFMPEG_DIR)
-	message(FATAL_ERROR "You must specify FFMPEG_DIR")
+if (NOT FFMPEG_LIB_DIR)
+	message(FATAL_ERROR "You must specify FFMPEG_LIB_DIR")
+endif()
+if (NOT FFMPEG_INCLUDES_DIR)
+	message(FATAL_ERROR "You must specify FFMPEG_INCLUDES_DIR")
 endif()
 
 add_executable(${PROJECT_NAME} detector.cpp math.h ffmpeg.h)
@@ -23,15 +26,13 @@ if (UNIX AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     )
 endif()
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${FFMPEG_DIR}/include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${FFMPEG_INCLUDES_DIR})
 
-target_link_directories(${PROJECT_NAME} PRIVATE ${FFMPEG_DIR}/lib)
+target_link_directories(${PROJECT_NAME} PRIVATE ${FFMPEG_LIB_DIR})
 target_link_libraries(
 	${PROJECT_NAME} 
 	PRIVATE 
 	avcodec 
 	avformat 
 	avutil 
-	swscale 
-	swresample 
 )

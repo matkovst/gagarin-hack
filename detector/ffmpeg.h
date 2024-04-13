@@ -166,7 +166,7 @@ private:
 
     AVFormatContext *CreateFormatContext(DataProvider *pDataProvider)
     {
-        av_register_all();
+        // av_register_all();
 
         AVFormatContext *ctx = NULL;
         if (!(ctx = avformat_alloc_context())) {
@@ -195,7 +195,7 @@ private:
 
     AVFormatContext *CreateFormatContext(const char* szFilePath)
 	{
-        av_register_all();
+        // av_register_all();
         avformat_network_init();
 
         AVFormatContext* ctx = NULL;
