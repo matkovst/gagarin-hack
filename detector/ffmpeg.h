@@ -1,21 +1,21 @@
 #include <iostream>
 extern "C" {
-	#include <libavformat/avformat.h>
-	#include <libavformat/avio.h>
-	#include <libavcodec/avcodec.h>
+    #include <libavformat/avformat.h>
+    #include <libavformat/avio.h>
+    #include <libavcodec/avcodec.h>
 }
 
 inline bool check(int e, int iLine, const char* szFile)
 {
     if (e < 0)
-	{
-		char errorStr[AV_ERROR_MAX_STRING_SIZE] = {0};
-		av_make_error_string(errorStr, AV_ERROR_MAX_STRING_SIZE, e);
+    {
+        char errorStr[AV_ERROR_MAX_STRING_SIZE] = {0};
+        av_make_error_string(errorStr, AV_ERROR_MAX_STRING_SIZE, e);
 
         std::cerr << "[FFmpeg] General error " << e << " " 
-				  << errorStr << " " 
-				  << " at line " << iLine 
-				  << " in file " << szFile << std::endl;
+                  << errorStr << " " 
+                  << " at line " << iLine 
+                  << " in file " << szFile << std::endl;
         return false;
     }
     return true;
@@ -41,15 +41,18 @@ public:
     FFmpegH264Demuxer(const char* szFilePath) : FFmpegH264Demuxer(CreateFormatContext(szFilePath)) {}
     FFmpegH264Demuxer(DataProvider* pDataProvider) : FFmpegH264Demuxer(CreateFormatContext(pDataProvider)) {}
     ~FFmpegH264Demuxer()
-	{
+    {
         if (m_pkt.data)
             av_packet_unref(&m_pkt);
         if (m_pktFiltered.data)
             av_packet_unref(&m_pktFiltered);
 
+        if (m_cctx)
+            avcodec_free_context(&m_cctx);
+
         avformat_close_input(&m_fmtc);
         if (m_avioc)
-		{
+        {
             av_freep(&m_avioc->buffer);
             av_freep(&m_avioc);
         }
@@ -64,7 +67,7 @@ public:
         return m_bitDepth == 8 ? m_width * m_height * 3 / 2: m_width * m_height * 3;
     }
     bool Demux(uint8_t** pktData, int* pktSize, int64_t* pktPts, int* pktFlags)
-	{
+    {
         if (!m_fmtc)
             return false;
 
@@ -131,12 +134,15 @@ private:
         if (m_fmtc->streams[m_iVideoStream]->codecpar->format == AV_PIX_FMT_YUV420P12LE)
             m_bitDepth = 12;
 
-        auto codec = m_fmtc->streams[m_iVideoStream]->codec;
-        m_gopSize = codec->gop_size;
+        AVCodec* codec = avcodec_find_decoder(m_eVideoCodec);
+        m_cctx = avcodec_alloc_context3(codec);
+        CHECK( avcodec_parameters_to_context(m_cctx, m_fmtc->streams[m_iVideoStream]->codecpar) );
+        CHECK( avcodec_open2(m_cctx, codec, NULL) );
+        std::cout << "[Demuxer] (codec) GOP = " << m_cctx->gop_size << std::endl;
+
         AVRational rTimeBase = m_fmtc->streams[m_iVideoStream]->time_base;
         m_timeBase = av_q2d(rTimeBase);
         m_userTimeScale = 1000;
-        std::cout << "[Demuxer] (codec) GOP = " << codec->gop_size << std::endl;
 
         m_applyFilter = m_eVideoCodec == AV_CODEC_ID_H264 && (
                 !strcmp(m_fmtc->iformat->long_name, "QuickTime / MOV") 
@@ -194,7 +200,7 @@ private:
     }
 
     AVFormatContext *CreateFormatContext(const char* szFilePath)
-	{
+    {
         // av_register_all();
         avformat_network_init();
 
@@ -205,9 +211,10 @@ private:
 
 private:
     AVFormatContext* m_fmtc{nullptr};
+    AVCodecContext* m_cctx{nullptr};
     AVIOContext* m_avioc{nullptr};
     AVPacket m_pkt;
-	AVPacket m_pktFiltered;
+    AVPacket m_pktFiltered;
     AVBSFContext* m_bsfc{nullptr};
 
     int m_iVideoStream;

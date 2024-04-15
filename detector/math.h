@@ -1,3 +1,5 @@
+#include <cmath>
+
 class StatsCollector final
 {
 public:
@@ -16,6 +18,7 @@ public:
         if (m_first)
         {
             m_mean = x;
+            m_x0 = x;
             m_first = false;
             return;
         }
@@ -23,6 +26,8 @@ public:
         const float d = x - m_mean;
         m_mean = m_mean + (m_forgetting * d);
         m_stdev2 = m_stdev2 * m_forgettingInv + m_forgetting * d * d;
+        m_grad = x - m_x0;
+        m_x0 = x;
     }
 
     bool outlier(float x, float k)
@@ -33,6 +38,7 @@ public:
 
     float mean() const noexcept { return m_mean; }
     float stdev2() const noexcept { return m_stdev2; }
+    float grad() const noexcept { return m_grad; }
 
 private:
     bool m_first{true};
@@ -40,6 +46,49 @@ private:
     float m_forgettingInv{0.0};
     float m_mean{0.0f};
     float m_stdev2{1.0f};
+    float m_grad{0.0f};
+    float m_x0{0.0f};
+};
+
+class HoldoutTrigger final
+{
+public:
+    enum Result { Up, Down, Hold };
+
+    HoldoutTrigger(int countBeforeDown = 1)
+    {
+        m_countBeforeDown = (countBeforeDown > 0) ? countBeforeDown : 1;
+    }
+    ~HoldoutTrigger() = default;
+
+    int update(bool v)
+    {
+        if (m_up)
+        {
+            ++m_upCount;
+            if (m_upCount > m_countBeforeDown)
+            {
+                m_up = false;
+                return Down;
+            }
+        }
+        else
+        {
+            if (v)
+            {
+                m_up = true;
+                m_upCount = 0;
+                return Up;
+            }
+        }
+
+        return Hold;
+    }
+
+private:
+    int m_countBeforeDown{1};
+    bool m_up{false};
+    int m_upCount{0};
 };
 
 class EventTrigger final

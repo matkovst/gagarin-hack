@@ -2,3 +2,4 @@
 *.avi
 *.mkv
 build*
+.ipynb_checkpoints*
